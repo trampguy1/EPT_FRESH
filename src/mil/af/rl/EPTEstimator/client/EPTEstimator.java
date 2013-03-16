@@ -68,21 +68,6 @@ public class EPTEstimator implements EntryPoint {
 	
 	public void onModuleLoad() {
 try{
-/* for use in setting focus in event naming dialog		
-		final EventBus eventBus = GWT.create(SimpleEventBus.class);
-		class ReadyForFocus extends GwtEvent<EventHandler>{
-			public Type<EventHandler> TYPE = new Type<EventHandler>();
-			
-				@Override
-			public com.google.gwt.event.shared.GwtEvent.Type<EventHandler> getAssociatedType(){
-				return (Type<EventHandler>)TYPE;
-			}
-				@Override
-			protected void dispatch(EventHandler handler){
-					
-				}
-		}
-*/		
 		EPTService.MMCALCReset(// resets the server without saving anything
 				new AsyncCallback<String[]>(){
 					public void onFailure(Throwable caught){								
@@ -91,14 +76,30 @@ try{
 					}
 				});
 		
+		class IndexMapper extends FlexTable{
+			void map(int index){
+				for(int i=0; i< this.getRowCount(); i++){
+					CheckBox box = (CheckBox)this.getWidget(i, 0);
+					for(int j = 0; j < this.getRowCount(); j++){
+						if(((1<<i) & index) == 0){
+							box.setValue(false);
+						}else{
+							box.setValue(true);
+						}
+					}
+				}
+			}
+		}
+
+		final IndexMapper indexExpansion = new IndexMapper();
+		
 		final TextArea currentStep = new TextArea();
 		currentStep.setText("Ready to Add an Effect");
 		currentStep.setReadOnly(true);
 		currentStep.setStylePrimaryName("currentStep");
 		
-		final TextArea indexExpansion = new TextArea();
-		indexExpansion.setText("This is the Expansion Area showing up");
-		
+		final ArrayList<CheckBox> expansionBoxList = new ArrayList<CheckBox>();		
+
 		final Button extendButton = new Button("Extend"); 
 		
 		final Button addEventButton = new Button("Add Effect");
@@ -348,6 +349,11 @@ try{
 					currentStep.setText("Provide probabilities.");
 					coreExtender();
 				}
+				CheckBox indexBitValue = new CheckBox(nameField.getText());
+				//indexExpansion.getW
+				indexBitValue.setValue(true);
+				indexExpansion.setWidget(indexExpansion.getRowCount(), 0, new CheckBox(nameField.getText()));
+				indexExpansion.map((1<<(indexExpansion.getRowCount()-1)));
 			}
 			private void coreExtender() {
 				int correlators[] = new int[32];
@@ -405,7 +411,6 @@ try{
 				});// end of MMCALC
 			}
 		}
-		
 		
 
 		final Extender extender = new Extender();
