@@ -43,7 +43,13 @@ import java.text.DecimalFormat;
 
 /**
  * Entry point classes define <code>onModuleLoad()</code>.
+ *
  */
+
+interface Mapable{
+	void clearSelection();
+	void setSelection();
+}
 public class EPTEstimator implements EntryPoint {
 	/**
 	 * The message displayed to the user when the server cannot be reached or
@@ -77,21 +83,61 @@ try{
 				});
 		
 		class IndexMapper extends FlexTable{
-			void map(int index){
+			Mapable currentSelection  = null;
+			void map(int index, Mapable source){
+				if(currentSelection != null){
+					currentSelection.clearSelection();
+				}
+				currentSelection = source;
+				currentSelection.setSelection();
 				for(int i=0; i< this.getRowCount(); i++){
 					CheckBox box = (CheckBox)this.getWidget(i, 0);
 					for(int j = 0; j < this.getRowCount(); j++){
 						if(((1<<i) & index) == 0){
 							box.setValue(false);
+							box.setStyleName("selected", false);
 						}else{
 							box.setValue(true);
+							box.setStyleName("selected", true);
 						}
 					}
 				}
 			}
+
+			public void map(String string, Mapable source) {
+				if(string.equalsIgnoreCase("")){
+					map(0, source);
+				}
+				else{
+					int index = Integer.parseInt(string);
+					map(index, source);
+				}
+			}
 		}
+		
+		
 
 		final IndexMapper indexExpansion = new IndexMapper();
+		indexExpansion.setTitle("Subset of events referred to by current index");
+		
+		class IndexBox extends TextBox implements Mapable{
+			String primaryStyle;
+			
+			IndexBox(){
+				primaryStyle = this.getStylePrimaryName();
+			}
+			public void setSelection(){
+				this.setStyleName("selected");
+			}
+			public void clearSelection(){
+				this.setStyleName(primaryStyle);
+			}
+			public void setText (String index){
+				super.setText(index);
+				indexExpansion.map(index, this);
+			}
+		}
+
 		
 		final TextArea currentStep = new TextArea();
 		currentStep.setText("Ready to Add an Effect");
@@ -110,9 +156,11 @@ try{
 		
 		final Button doneButton = new Button("Done");
 		doneButton.setStylePrimaryName("DoneStyle");
-		doneButton.setTitle("The EPT is complete");
+		doneButton.setTitle("The EPT is erased");
+		indexExpansion.clear();
+
 		
-		final TextBox marginalEvent = new TextBox();
+		final IndexBox marginalEvent = new IndexBox();
 		marginalEvent.setText("0");
 		marginalEvent.setTitle("Index of powerset of base events in order added");
 		
@@ -151,14 +199,77 @@ try{
 		final ArrayList<CheckBox> checkBoxList = new ArrayList<CheckBox>();
 		final FlexTable corTable = new FlexTable();
 		
-		final Grid marginalGrid = new Grid(64,2);
-		marginalGrid.setBorderWidth(1);
-		marginalGrid.setText(0, 0, "1.0");
-		
-		final Grid subsetGrid = new Grid(64,2);
-		subsetGrid.setBorderWidth(1);
+		//final Grid marginalGrid = new Grid(64,2);
+		//marginalGrid.setBorderWidth(1);
+		//marginalGrid.setText(0, 0, "1.0");
+		//marginalGrid.
 		
 		
+		
+		
+		class DistributionGrid extends Grid implements Mapable{
+			Integer previousSelection;
+			String previousStyle;
+			
+			public void clearSelection(){
+				if(previousSelection == null) return;
+				getRowFormatter().setStyleName(previousSelection, previousStyle);
+				previousSelection = null;
+			}
+			public void setSelection(){
+				getRowFormatter().setStyleName(previousSelection,"selected");				
+			}
+			DistributionGrid(String[] title){
+				super(64,title.length);
+				previousSelection = null;
+				previousStyle = null;
+				final Mapable currentMapable = this;
+				setStylePrimaryName("jointGrid");
+				setBorderWidth(1);
+				setHeight("200px");
+				for(int j = 0; j < title.length; j++){
+					setText(0,j, title[j]);
+				}
+				addClickHandler(new ClickHandler(){
+					public void onClick(ClickEvent e){
+						com.google.gwt.user.client.ui.HTMLTable.Cell clickedCell = getCellForEvent(e);
+						if(clickedCell != null){
+							String styleNames = getStyleName();
+							String OriginalprimaryStyle = getStylePrimaryName();
+							int cellIndex = clickedCell.getCellIndex();
+							int rowIndex = clickedCell.getRowIndex();
+							if(previousSelection == null){
+								previousSelection = new Integer(rowIndex);
+								previousStyle = getRowFormatter().getStyleName(rowIndex);
+							}else{
+								getRowFormatter().setStyleName(previousSelection, previousStyle);
+								previousSelection = rowIndex;
+							}
+							//getRowFormatter().setStyleName(rowIndex, "selected");
+							indexExpansion.map(rowIndex - 1, currentMapable);
+							//getRowFormatter().setStyleName(rowIndex, "selected");
+							//getCellFormatter().setStyleName(0, cellIndex, "columnHeader");
+							}
+						}
+					}
+				);
+			}
+ 		}
+		
+
+		
+		String[] titles = {"Index","Marginal Prob"};
+		final DistributionGrid marginalGrid = new DistributionGrid(titles);
+		
+		titles[1] = "Pearson Correlation";
+		final DistributionGrid pearsonGrid = new DistributionGrid(titles);
+		
+		String[] moreTitles = {"Index",  "Lemmer(Abs)", "Lemmer(Rel)"};
+		final DistributionGrid lemmerGrid= new DistributionGrid(moreTitles);
+		lemmerGrid.setText(1, 0, "0");
+		lemmerGrid.setText(1, 1, "   -");
+		lemmerGrid.setText(1, 2, "   -");
+/*		
 		final Grid pearsonGrid = new Grid(64,2);
 		pearsonGrid.setStylePrimaryName("jointGrid");
 		pearsonGrid.setBorderWidth(1);
@@ -171,34 +282,26 @@ try{
 					String OriginalprimaryStyle = pearsonGrid.getStylePrimaryName();
 					int cellIndex = clickedCell.getCellIndex();
 					int rowIndex = clickedCell.getRowIndex();
+					indexExpansion.map(rowIndex -1);
 					String primaryStyle = pearsonGrid.getRowFormatter().getStylePrimaryName(rowIndex);
 					pearsonGrid.getRowFormatter().setStyleName(rowIndex, "selected");
 					pearsonGrid.getCellFormatter().setStyleName(0, 0, "columnHeader");
 					primaryStyle = pearsonGrid.getRowFormatter().getStylePrimaryName(rowIndex);
 					primaryStyle = pearsonGrid.getRowFormatter().getStyleName(rowIndex);
-					int psIndex= new Integer(pearsonGrid.getHTML(rowIndex, cellIndex)).intValue();
-					int j = 0;
-					int k = 0;
-					for(CheckBox cb: checkBoxList){
-						if(((psIndex&(1<<j)) != 0)){
-							String name = cb.getText();
- 							subsetGrid.setText(k++, 0, name);
-						}
-						j += 1;
 					}
 				}
 			}
-		});
-		
+		);
+*/		
 		final ScrollPanel marginalScrollPanel = new ScrollPanel(marginalGrid);
 		marginalScrollPanel.setHeight("200px");
 		marginalScrollPanel.setAlwaysShowScrollBars(true);
 		final ScrollPanel jointScrollPanel = new ScrollPanel(pearsonGrid);
 		jointScrollPanel.setHeight("200px");
 		jointScrollPanel.setAlwaysShowScrollBars(true);
-		final ScrollPanel subsetScrollPanel = new ScrollPanel(subsetGrid);
-		subsetScrollPanel.setHeight("200px");
-		subsetScrollPanel.setAlwaysShowScrollBars(true);
+		final ScrollPanel lemmerScrollPanel = new ScrollPanel(lemmerGrid);
+		lemmerScrollPanel.setHeight("200px");
+		lemmerScrollPanel.setAlwaysShowScrollBars(true);
 
 		// We can add style names to widgets
 		
@@ -238,9 +341,9 @@ try{
 		RootPanel.get("newValueContainer").add(newValue);
 		RootPanel.get("upperBoundContainer").add(upperBound);
 		RootPanel.get("setValueContainer").add(setValueButton);
+		RootPanel.get("powerSubsetContainer").add(lemmerScrollPanel);
 		RootPanel.get("marginalGridContainer").add(marginalScrollPanel);
 		RootPanel.get("jointGridContainer").add(jointScrollPanel);
-		RootPanel.get("powerSubsetContainer").add(subsetScrollPanel);
 		RootPanel.get("showMarginalButtonContainer").add(showMarginalButton);
 		RootPanel.get("correlationListOKContainer").add(correlationListOK);
 
@@ -353,7 +456,7 @@ try{
 				//indexExpansion.getW
 				indexBitValue.setValue(true);
 				indexExpansion.setWidget(indexExpansion.getRowCount(), 0, new CheckBox(nameField.getText()));
-				indexExpansion.map((1<<(indexExpansion.getRowCount()-1)));
+				//indexExpansion.map((1<<(indexExpansion.getRowCount()-1)), this);
 			}
 			private void coreExtender() {
 				int correlators[] = new int[32];
@@ -398,7 +501,7 @@ try{
 						for(CheckBox x: checkBoxList){
 							x.setEnabled(true);
 						}
-						marginalEvent.setText(nameField.getText());
+						marginalEvent.setText(range[3]);
 						nameField.setText(null);
 						extendButton.setEnabled(false);
 						nameField.setEnabled(false);
@@ -448,6 +551,9 @@ try{
 			private void coreSetValue() {
 				//get the new probability value over to mmc which has hopefully been initialized
 				double desiredValue = new Double(newValue.getText());
+				int eventIndex = new Integer(marginalEvent.getText());
+				lemmerGrid.setText(eventIndex + 1, 0, marginalEvent.getText());
+				lemmerGrid.setText(eventIndex +1, 1,  new Double(desiredValue - new Double(currentValue.getText())).toString());
 				EPTService.MMCALC(desiredValue, 
 					new AsyncCallback<String[]>(){
 						public void onFailure(Throwable caught){
