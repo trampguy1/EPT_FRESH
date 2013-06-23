@@ -84,6 +84,9 @@ try{
 		
 		class IndexMapper extends FlexTable{
 			Mapable currentSelection  = null;
+			IndexMapper(){
+				this.setStylePrimaryName("selected");
+			}
 			void map(int index, Mapable source){
 				if(currentSelection != null){
 					currentSelection.clearSelection();
@@ -208,7 +211,7 @@ try{
 		
 		
 		class DistributionGrid extends Grid implements Mapable{
-			Integer previousSelection;
+			Integer previousSelection = null;
 			String previousStyle;
 			
 			public void clearSelection(){
@@ -217,7 +220,7 @@ try{
 				previousSelection = null;
 			}
 			public void setSelection(){
-				getRowFormatter().setStyleName(previousSelection,"selected");				
+				if(previousSelection != null) getRowFormatter().setStyleName(previousSelection,"selected");				
 			}
 			DistributionGrid(String[] title){
 				super(64,title.length);
@@ -245,10 +248,7 @@ try{
 								getRowFormatter().setStyleName(previousSelection, previousStyle);
 								previousSelection = rowIndex;
 							}
-							//getRowFormatter().setStyleName(rowIndex, "selected");
 							indexExpansion.map(rowIndex - 1, currentMapable);
-							//getRowFormatter().setStyleName(rowIndex, "selected");
-							//getCellFormatter().setStyleName(0, cellIndex, "columnHeader");
 							}
 						}
 					}
